@@ -11,3 +11,5 @@ Route::get('/dashboard', function () {
 
 Route::redirect('/', '/dashboard');
 Route::resource('products', ProductController::class)->except('show');
+Route::get('movements', [MovementController::class, 'index'])->name('movements.index');
+Route::post('movements', [MovementController::class, 'store'])->name('movements.store');
