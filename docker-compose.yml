@@ -1,54 +1,96 @@
+name: inventorysystem
+
 services:
   app:
+    image: ${APP_IMAGE:-inventorysystem-app}
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
+      target: app
+    container_name: inventorysystem_app
     restart: unless-stopped
+    command: php-fpm
+    env_file: .env
     environment:
-      APP_NAME: ${APP_NAME:-InventorySystem}
-      APP_ENV: production
-      APP_DEBUG: "false"
-      APP_KEY: ${APP_KEY}
-      APP_URL: ${APP_URL}
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
-    ports:
-      - "8000:80"
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - RUN_MIGRATIONS=${RUN_MIGRATIONS:-true}
+    volumes:
+      - storage_public:/var/www/html/storage/app/public
+    networks:
+      - inventorysystem
+      - inventorysystem_db
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - storage:/var/www/html/storage
-    networks:
-      - inventory
-
-  db:
-    image: mariadb:11
-    restart: unless-stopped
-    environment:
-      MARIADB_DATABASE: ${DB_DATABASE}
-      MARIADB_USER: ${DB_USERNAME}
-      MARIADB_PASSWORD: ${DB_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    volumes:
-      - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        - CMD-SHELL
+        - php-fpm -t 2>&1 | grep -q 'successful'
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks:
-      - inventory
+      retries: 3
+      start_period: 30s
 
-volumes:
-  db-data:
-  storage:
+  nginx:
+    image: ${NGINX_IMAGE:-inventorysystem-nginx}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: nginx-prod
+    container_name: inventorysystem_nginx
+    restart: unless-stopped
+    volumes:
+      - storage_public:/var/www/html/public/storage:ro
+    networks:
+      - inventorysystem
+      - web
+    depends_on:
+      app:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.inventorysystem.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.inventorysystem.entrypoints=websecure
+      - traefik.http.routers.inventorysystem.tls.certresolver=cloudflare
+      - traefik.http.services.inventorysystem.loadbalancer.server.port=80
+      - traefik.docker.network=web
+
+  # DB propia del proyecto, NO la red "databases" compartida con otros
+  # servicios de Dokploy: es un ejemplo de curso, se crea y se tira sin
+  # afectar nada más en el servidor.
+  db:
+    image: mysql:8.0
+    container_name: inventorysystem_db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - inventorysystem_db # solo la ve "app", nunca "web"
 
 networks:
-  inventory:
+  inventorysystem:
     driver: bridge
+  inventorysystem_db:
+    driver: bridge
+  web:
+    external: true # la crea/gestiona Dokploy
+  dokploy-network:
+    external: true # requerida por Dokploy, no la usa ningún servicio directamente
+
+volumes:
+  storage_public:
+  db_data:

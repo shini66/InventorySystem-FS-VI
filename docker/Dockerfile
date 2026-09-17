@@ -16,8 +16,6 @@ RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist --opti
 FROM php:8.4-fpm-alpine AS app
 
 RUN apk add --no-cache \
-        nginx \
-        supervisor \
         icu-dev \
         libzip-dev \
         oniguruma-dev \
@@ -35,16 +33,23 @@ COPY . .
 COPY --from=assets /app/public/build ./public/build
 
 RUN composer dump-autoload --optimize --no-dev --no-scripts \
-    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && mkdir -p storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 80
+EXPOSE 9000
 
 ENTRYPOINT ["entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["php-fpm"]
+
+FROM nginx:alpine AS nginx-prod
+
+COPY --from=app /var/www/html/public /var/www/html/public
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+
+RUN mkdir -p /var/www/html/public/storage
+
+EXPOSE 80

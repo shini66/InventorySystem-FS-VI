@@ -8,6 +8,7 @@ php artisan package:discover --ansi
 
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     php artisan migrate --force
+    php artisan db:seed --force
 fi
 
 php artisan config:cache
