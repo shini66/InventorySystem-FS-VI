@@ -24,7 +24,11 @@ class StoreMovementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'product_id' => [
+                'required',
+                'integer',
+                Rule::exists('products', 'id')->where('company_id', $this->user()->company_id),
+            ],
             'type' => ['required', Rule::in(['entrada', 'salida'])],
             'quantity' => ['required', 'integer', 'min:1'],
             'supplier' => ['nullable', 'required_if:type,entrada', 'string', 'max:120'],

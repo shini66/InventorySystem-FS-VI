@@ -29,6 +29,7 @@ class ProductRequest extends FormRequest
             'sku' => [
                 'required', 'string', 'max:60',
                 Rule::unique('products', 'sku')
+                    ->where('company_id', $this->user()->company_id)
                     ->ignore($this->route('product')),
             ],
             'category' => ['required', 'string', 'max:80'],
