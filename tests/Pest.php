@@ -1,6 +1,10 @@
 <?php
 
+use App\Models\Company;
+use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /*
@@ -15,8 +19,25 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
+    ->beforeEach(function (): void {
+        Role::findOrCreate('Administrador', 'web');
+        Role::findOrCreate('Operario', 'web');
+    })
     ->in('Feature');
+
+function autor(string $role, ?Company $company = null): User
+{
+    $user = User::factory()->for($company ?? Company::factory()->create())->create();
+    $user->assignRole($role);
+
+    return $user;
+}
+
+function productFor(Company $company, array $attributes = []): Product
+{
+    return Product::factory()->for($company)->create($attributes);
+}
 
 /*
 |--------------------------------------------------------------------------

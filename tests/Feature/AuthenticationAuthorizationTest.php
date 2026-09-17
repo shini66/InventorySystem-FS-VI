@@ -1,37 +1,7 @@
 <?php
 
-use App\Models\Company;
-use App\Models\Product;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-
-uses(RefreshDatabase::class);
-
-beforeEach(function (): void {
-    Role::findOrCreate('Administrador', 'web');
-    Role::findOrCreate('Operario', 'web');
-});
-
-function userWithRole(string $role, ?Company $company = null): User
-{
-    $user = User::factory()->for($company ?? Company::factory())->create();
-    $user->assignRole($role);
-
-    return $user;
-}
-
-function product(Company $company, array $attributes = []): Product
-{
-    return Product::query()->create(array_merge([
-        'company_id' => $company->id,
-        'name' => 'Producto de prueba',
-        'description' => 'Descripción de prueba',
-        'sku' => 'SKU-'.fake()->unique()->numerify('####'),
-        'category' => 'General',
-    ], $attributes));
-}
 
 test('a guest is redirected to login for protected routes', function (): void {
     $this->get(route('movements.index'))->assertRedirect(route('login'));
@@ -68,8 +38,8 @@ test('a user cannot log in with invalid credentials', function (): void {
 });
 
 test('an administrator can access product routes', function (): void {
-    $administrator = userWithRole('Administrador');
-    $product = product($administrator->company);
+    $administrator = autor('Administrador');
+    $product = productFor($administrator->company);
 
     $this->actingAs($administrator)->get(route('products.index'))->assertOk();
     $this->actingAs($administrator)->get(route('products.create'))->assertOk();
@@ -88,8 +58,8 @@ test('an administrator can access product routes', function (): void {
 });
 
 test('an operario receives forbidden for every product route', function (): void {
-    $operario = userWithRole('Operario');
-    $product = product($operario->company);
+    $operario = autor('Operario');
+    $product = productFor($operario->company);
 
     $this->actingAs($operario)->get(route('products.index'))->assertForbidden();
     $this->actingAs($operario)->get(route('products.create'))->assertForbidden();
@@ -100,8 +70,8 @@ test('an operario receives forbidden for every product route', function (): void
 });
 
 test('both roles can view and register movements', function (string $role): void {
-    $user = userWithRole($role);
-    $product = product($user->company);
+    $user = autor($role);
+    $product = productFor($user->company, ['stock' => 0]);
 
     $this->actingAs($user)->get(route('movements.index'))->assertOk();
     $this->actingAs($user)->post(route('movements.store'), [
@@ -121,8 +91,8 @@ test('both roles can view and register movements', function (string $role): void
 })->with(['administrador' => 'Administrador', 'operario' => 'Operario']);
 
 test('a product update uses the product request validation', function (): void {
-    $administrator = userWithRole('Administrador');
-    $product = product($administrator->company);
+    $administrator = autor('Administrador');
+    $product = productFor($administrator->company);
 
     $this->actingAs($administrator)
         ->put(route('products.update', $product), [

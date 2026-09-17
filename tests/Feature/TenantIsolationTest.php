@@ -3,36 +3,13 @@
 use App\Models\Company;
 use App\Models\Movement;
 use App\Models\Product;
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-
-uses(RefreshDatabase::class);
-
-beforeEach(function (): void {
-    Role::findOrCreate('Administrador', 'web');
-    Role::findOrCreate('Operario', 'web');
-});
-
-function tenantUser(Company $company, string $role): User
-{
-    $user = User::factory()->for($company)->create();
-    $user->assignRole($role);
-
-    return $user;
-}
-
-function tenantProduct(Company $company, array $attributes = []): Product
-{
-    return Product::factory()->for($company)->create($attributes);
-}
 
 test('the same SKU is allowed in separate companies and product queries are isolated', function (): void {
     $firstCompany = Company::factory()->create();
     $secondCompany = Company::factory()->create();
-    $administrator = tenantUser($firstCompany, 'Administrador');
-    $firstProduct = tenantProduct($firstCompany, ['name' => 'Producto propio', 'sku' => 'SKU-COMPARTIDO']);
-    $secondProduct = tenantProduct($secondCompany, ['name' => 'Producto ajeno', 'sku' => 'SKU-COMPARTIDO']);
+    $administrator = autor('Administrador', $firstCompany);
+    $firstProduct = productFor($firstCompany, ['name' => 'Producto propio', 'sku' => 'SKU-COMPARTIDO']);
+    $secondProduct = productFor($secondCompany, ['name' => 'Producto ajeno', 'sku' => 'SKU-COMPARTIDO']);
 
     expect(Product::query()->where('sku', 'SKU-COMPARTIDO')->count())->toBe(2);
 
@@ -52,9 +29,9 @@ test('the same SKU is allowed in separate companies and product queries are isol
 
 test('movements cannot use foreign products and insufficient stock is atomic', function (): void {
     $firstCompany = Company::factory()->create();
-    $operator = tenantUser($firstCompany, 'Operario');
-    $ownProduct = tenantProduct($firstCompany, ['stock' => 3]);
-    $foreignProduct = tenantProduct(Company::factory()->create(), ['stock' => 7]);
+    $operator = autor('Operario', $firstCompany);
+    $ownProduct = productFor($firstCompany, ['stock' => 3]);
+    $foreignProduct = productFor(Company::factory()->create(), ['stock' => 7]);
 
     $this->actingAs($operator)->post(route('movements.store'), [
         'product_id' => $foreignProduct->id,
@@ -79,9 +56,9 @@ test('movements cannot use foreign products and insufficient stock is atomic', f
 
 test('movement history and product selector exclude foreign company data', function (): void {
     $company = Company::factory()->create();
-    $operator = tenantUser($company, 'Operario');
-    $ownProduct = tenantProduct($company, ['name' => 'Producto propio']);
-    $foreignProduct = tenantProduct(Company::factory()->create(), ['name' => 'Producto ajeno']);
+    $operator = autor('Operario', $company);
+    $ownProduct = productFor($company, ['name' => 'Producto propio']);
+    $foreignProduct = productFor(Company::factory()->create(), ['name' => 'Producto ajeno']);
     Movement::factory()->for($ownProduct)->create();
     Movement::factory()->for($foreignProduct)->create();
 
