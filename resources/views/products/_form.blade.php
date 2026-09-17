@@ -1,22 +1,28 @@
 @csrf
 @if ($product->exists) @method('PUT') @endif
 
-<label>Nombre
-    <input name="name" value="{{ old('name', $product->name) }}" required>
-</label>
-@error('name') <p class="error">{{ $message }}</p> @enderror
+<div class="space-y-4">
+    <div>
+        <x-label>Nombre</x-label>
+        <x-input name="name" value="{{ old('name', $product->name) }}" required />
+        <x-error name="name" />
+    </div>
 
-<label>SKU
-    <input name="sku" value="{{ old('sku', $product->sku) }}" required>
-</label>
-@error('sku') <p class="error">{{ $message }}</p> @enderror
+    <div>
+        <x-label>SKU</x-label>
+        <x-input name="sku" value="{{ old('sku', $product->sku) }}" required />
+        <x-error name="sku" />
+    </div>
 
-<label>Categoría
-    <input name="category" value="{{ old('category', $product->category) }}" required>
-</label>
+    <div>
+        <x-label>Categoría</x-label>
+        <x-input name="category" value="{{ old('category', $product->category) }}" required />
+    </div>
 
-<label>Descripción
-    <textarea name="description">{{ old('description', $product->description) }}</textarea>
-</label>
+    <div>
+        <x-label>Descripción</x-label>
+        <x-textarea name="description">{{ old('description', $product->description) }}</x-textarea>
+    </div>
+</div>
 
-<button>{{ $product->exists ? 'Actualizar' : 'Guardar' }}</button>
+<x-button class="mt-6">{{ $product->exists ? 'Actualizar' : 'Guardar' }}</x-button>
