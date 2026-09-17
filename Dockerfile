@@ -13,7 +13,7 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist --optimize-autoloader
 
-FROM php:8.3-fpm-alpine AS app
+FROM php:8.4-fpm-alpine AS app
 
 RUN apk add --no-cache \
         nginx \
@@ -29,6 +29,7 @@ RUN apk add --no-cache \
 
 WORKDIR /var/www/html
 
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 COPY --from=assets /app/public/build ./public/build
